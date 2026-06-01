@@ -3,56 +3,42 @@
 #include <assert.h>
 #include "list.h"
 
-#define ARRAY_SIZE 8  /* number of slots in each node's circular array */
+#define ARRAY_SIZE 8  // number of slots in each node's circular array
 
-/* -------------------------------------------------------------------------
- * NODE - one node in the doubly-linked list.
- * Each node holds up to ARRAY_SIZE void* items in a circular array.
- * 'first' is the index of the front item; items wrap around mod ARRAY_SIZE.
- * ------------------------------------------------------------------------- */
+// NODE - one node in the doubly-linked list, holds a circular array of items
 typedef struct node {
-    void      **items;      /* circular array of void* pointers              */
-    int         count;      /* number of items currently stored in this node */
-    int         first;      /* index of the first (front) item               */
-    struct node *next;      /* pointer to next node toward the tail          */
-    struct node *prev;      /* pointer to prev node toward the head          */
+    void      **items;      // circular array of void* pointers
+    int         count;      // number of items currently in this node
+    int         first;      // index of the first (front) item
+    struct node *next;      // pointer to next node toward the tail
+    struct node *prev;      // pointer to prev node toward the head
 } NODE;
 
-/* -------------------------------------------------------------------------
- * LIST - the top-level list structure.
- * head points to the first node, tail to the last.
- * numItems tracks the total items across all nodes for O(1) count.
- * ------------------------------------------------------------------------- */
+// LIST - top-level structure with head/tail pointers and total item count
 struct list {
-    NODE *head;      /* first node in the linked list  */
-    NODE *tail;      /* last node in the linked list   */
-    int   numItems;  /* total items across all nodes   */
+    NODE *head;      // first node in the linked list
+    NODE *tail;      // last node in the linked list
+    int   numItems;  // total items across all nodes
 };
 
-/* -------------------------------------------------------------------------
- * makeNode - helper: allocate and initialize a new empty node
- * O(1)
- * ------------------------------------------------------------------------- */
+// makeNode - allocate and initialize a new empty node // O(1)
 static NODE *makeNode(void)
 {
     NODE *np = malloc(sizeof(NODE));
     assert(np != NULL);
 
-    np->items = malloc(sizeof(void *) * ARRAY_SIZE); /* allocate circular array */
+    np->items = malloc(sizeof(void *) * ARRAY_SIZE); // allocate circular array
     assert(np->items != NULL);
 
-    np->count = 0;   /* node starts empty     */
-    np->first = 0;   /* front starts at index 0 */
+    np->count = 0;    // node starts empty
+    np->first = 0;    // front starts at index 0
     np->next  = NULL;
     np->prev  = NULL;
 
     return np;
 }
 
-/* -------------------------------------------------------------------------
- * createList - allocate and return a new empty list
- * O(1)
- * ------------------------------------------------------------------------- */
+// createList - allocate and return a new empty list // O(1)
 LIST *createList(void)
 {
     LIST *lp = malloc(sizeof(LIST));
@@ -65,58 +51,43 @@ LIST *createList(void)
     return lp;
 }
 
-/* -------------------------------------------------------------------------
- * destroyList - free all nodes and their arrays, then free the list struct
- * O(n) where n is the number of nodes
- * ------------------------------------------------------------------------- */
+// destroyList - free all nodes, their arrays, and the list struct // O(n)
 void destroyList(LIST *lp)
 {
     assert(lp != NULL);
 
     NODE *cur = lp->head;
     while (cur != NULL) {
-        NODE *next = cur->next;   /* save next before freeing current */
-        free(cur->items);         /* free the circular array          */
-        free(cur);                /* free the node itself             */
+        NODE *next = cur->next; // save next before freeing current
+        free(cur->items);       // free the circular array
+        free(cur);              // free the node itself
         cur = next;
     }
 
-    free(lp);   /* free the list struct */
+    free(lp); // free the list struct
 }
 
-/* -------------------------------------------------------------------------
- * numItems - return the total number of items in the list
- * O(1)
- * ------------------------------------------------------------------------- */
+// numItems - return the total number of items in the list // O(1)
 int numItems(LIST *lp)
 {
     assert(lp != NULL);
     return lp->numItems;
 }
 
-/* -------------------------------------------------------------------------
- * addFirst - add item as the first element in the list
- *
- * Steps:
- *   1. If the head node is full (or list is empty), prepend a new node.
- *   2. Decrement 'first' circularly and store the item there.
- * O(1)
- * ------------------------------------------------------------------------- */
+// addFirst - add item as the first element in the list // O(1)
 void addFirst(LIST *lp, void *item)
 {
     assert(lp != NULL);
 
-    /* If list is empty or the head node is full, create a new head node */
+    // if list is empty or head node is full, prepend a new node
     if (lp->head == NULL || lp->head->count == ARRAY_SIZE) {
         NODE *np = makeNode();
 
         if (lp->head == NULL) {
-            /* list was empty: new node is both head and tail */
-            lp->head = np;
+            lp->head = np; // list was empty: new node is head and tail
             lp->tail = np;
         } else {
-            /* prepend new node before current head */
-            np->next       = lp->head;
+            np->next       = lp->head; // prepend new node before current head
             lp->head->prev = np;
             lp->head       = np;
         }
@@ -124,37 +95,27 @@ void addFirst(LIST *lp, void *item)
 
     NODE *front = lp->head;
 
-    /* Move 'first' one step back (circularly) to make room at the front */
-    front->first = (front->first - 1 + ARRAY_SIZE) % ARRAY_SIZE;
-    front->items[front->first] = item;   /* store item at new front slot */
+    front->first = (front->first - 1 + ARRAY_SIZE) % ARRAY_SIZE; // move first back circularly
+    front->items[front->first] = item; // store item at new front slot
     front->count++;
 
     lp->numItems++;
 }
 
-/* -------------------------------------------------------------------------
- * addLast - add item as the last element in the list
- *
- * Steps:
- *   1. If the tail node is full (or list is empty), append a new node.
- *   2. Store the item at the next open slot after the existing items.
- * O(1)
- * ------------------------------------------------------------------------- */
+// addLast - add item as the last element in the list // O(1)
 void addLast(LIST *lp, void *item)
 {
     assert(lp != NULL);
 
-    /* If list is empty or the tail node is full, create a new tail node */
+    // if list is empty or tail node is full, append a new node
     if (lp->tail == NULL || lp->tail->count == ARRAY_SIZE) {
         NODE *np = makeNode();
 
         if (lp->tail == NULL) {
-            /* list was empty: new node is both head and tail */
-            lp->head = np;
+            lp->head = np; // list was empty: new node is head and tail
             lp->tail = np;
         } else {
-            /* append new node after current tail */
-            np->prev       = lp->tail;
+            np->prev       = lp->tail; // append new node after current tail
             lp->tail->next = np;
             lp->tail       = np;
         }
@@ -162,36 +123,28 @@ void addLast(LIST *lp, void *item)
 
     NODE *back = lp->tail;
 
-    /* The next open slot is (first + count) % ARRAY_SIZE */
-    int slot = (back->first + back->count) % ARRAY_SIZE;
+    int slot = (back->first + back->count) % ARRAY_SIZE; // next open slot
     back->items[slot] = item;
     back->count++;
 
     lp->numItems++;
 }
 
-/* -------------------------------------------------------------------------
- * removeFirst - remove and return the first item in the list
- *
- * Steps:
- *   1. If the head node is empty, free it and make the next node the head.
- *   2. Read the item at 'first', advance 'first' circularly, decrement count.
- * O(1)
- * ------------------------------------------------------------------------- */
+// removeFirst - remove and return the first item in the list // O(1)
 void *removeFirst(LIST *lp)
 {
     assert(lp != NULL);
-    assert(lp->numItems > 0);   /* list must not be empty */
+    assert(lp->numItems > 0); // list must not be empty
 
-    /* If head node is empty, remove it and advance head */
+    // if head node is empty, free it and advance head
     if (lp->head->count == 0) {
         NODE *old = lp->head;
         lp->head  = old->next;
 
         if (lp->head != NULL)
-            lp->head->prev = NULL;   /* new head has no prev */
+            lp->head->prev = NULL; // new head has no prev
         else
-            lp->tail = NULL;         /* list became empty    */
+            lp->tail = NULL;       // list became empty
 
         free(old->items);
         free(old);
@@ -199,13 +152,13 @@ void *removeFirst(LIST *lp)
 
     NODE *front = lp->head;
 
-    void *item  = front->items[front->first];           /* grab item        */
-    front->first = (front->first + 1) % ARRAY_SIZE;    /* advance front    */
+    void *item   = front->items[front->first];        // grab item at front
+    front->first = (front->first + 1) % ARRAY_SIZE;  // advance first circularly
     front->count--;
 
     lp->numItems--;
 
-    /* If the head node is now empty AND there are more nodes, clean it up */
+    // if head node is now empty and more nodes exist, free it
     if (front->count == 0 && front->next != NULL) {
         lp->head       = front->next;
         lp->head->prev = NULL;
@@ -216,28 +169,21 @@ void *removeFirst(LIST *lp)
     return item;
 }
 
-/* -------------------------------------------------------------------------
- * removeLast - remove and return the last item in the list
- *
- * Steps:
- *   1. If the tail node is empty, free it and make the prev node the tail.
- *   2. The last item sits at (first + count - 1) % ARRAY_SIZE; read and remove it.
- * O(1)
- * ------------------------------------------------------------------------- */
+// removeLast - remove and return the last item in the list // O(1)
 void *removeLast(LIST *lp)
 {
     assert(lp != NULL);
-    assert(lp->numItems > 0);   /* list must not be empty */
+    assert(lp->numItems > 0); // list must not be empty
 
-    /* If tail node is empty, remove it and retreat tail */
+    // if tail node is empty, free it and retreat tail
     if (lp->tail->count == 0) {
         NODE *old = lp->tail;
         lp->tail  = old->prev;
 
         if (lp->tail != NULL)
-            lp->tail->next = NULL;   /* new tail has no next */
+            lp->tail->next = NULL; // new tail has no next
         else
-            lp->head = NULL;         /* list became empty    */
+            lp->head = NULL;       // list became empty
 
         free(old->items);
         free(old);
@@ -245,14 +191,13 @@ void *removeLast(LIST *lp)
 
     NODE *back = lp->tail;
 
-    /* Last item index in circular array */
-    int slot  = (back->first + back->count - 1) % ARRAY_SIZE;
+    int slot   = (back->first + back->count - 1) % ARRAY_SIZE; // last item index
     void *item = back->items[slot];
     back->count--;
 
     lp->numItems--;
 
-    /* If the tail node is now empty AND there are more nodes, clean it up */
+    // if tail node is now empty and more nodes exist, free it
     if (back->count == 0 && back->prev != NULL) {
         lp->tail       = back->prev;
         lp->tail->next = NULL;
@@ -263,15 +208,7 @@ void *removeLast(LIST *lp)
     return item;
 }
 
-/* -------------------------------------------------------------------------
- * getItem - return the item at position 'index' in the list
- *
- * To minimize traversal, we start from whichever end is closer:
- *   - index < numItems/2  → search forward from head
- *   - index >= numItems/2 → search backward from tail
- *
- * O(n/m) where n = total items, m = ARRAY_SIZE (we traverse nodes, not items)
- * ------------------------------------------------------------------------- */
+// getItem - return item at position index, searching from the closer end // O(n/m)
 void *getItem(LIST *lp, int index)
 {
     assert(lp != NULL);
@@ -280,25 +217,22 @@ void *getItem(LIST *lp, int index)
     NODE *cur;
 
     if (index < lp->numItems / 2) {
-        /* ---- Search forward from head ---- */
+        // search forward from head
         cur = lp->head;
         while (index >= cur->count) {
-            index -= cur->count;   /* subtract items in this node, move on */
+            index -= cur->count; // skip past this node's items
             cur    = cur->next;
         }
     } else {
-        /* ---- Search backward from tail ---- */
-        /* Convert index to a "distance from the back" */
-        int fromBack = lp->numItems - 1 - index;
+        // search backward from tail
+        int fromBack = lp->numItems - 1 - index; // distance from the back
         cur = lp->tail;
         while (fromBack >= cur->count) {
-            fromBack -= cur->count;   /* subtract items in this node, move on */
+            fromBack -= cur->count; // skip past this node's items
             cur       = cur->prev;
         }
-        /* fromBack is now the distance from the BACK of this node */
-        index = cur->count - 1 - fromBack;
+        index = cur->count - 1 - fromBack; // convert back to local index
     }
 
-    /* Map the local index into the circular array */
-    return cur->items[(cur->first + index) % ARRAY_SIZE];
+    return cur->items[(cur->first + index) % ARRAY_SIZE]; // map into circular array
 }
