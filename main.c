@@ -3,18 +3,14 @@
 #include <string.h>
 #include "list.h"
 
-/* -------------------------------------------------------------------------
- * Song - represents a single track in the playlist
- * ------------------------------------------------------------------------- */
+// Song - represents a single track in the playlist
 typedef struct {
-    char title[64];    /* song title  */
-    char artist[64];   /* artist name */
-    int  duration;     /* length in seconds */
+    char title[64];   // song title
+    char artist[64];  // artist name
+    int  duration;    // length in seconds
 } Song;
 
-/* -------------------------------------------------------------------------
- * makeSong - helper: allocate and return a new Song
- * ------------------------------------------------------------------------- */
+// makeSong - allocate and return a new Song // O(1)
 static Song *makeSong(const char *title, const char *artist, int duration)
 {
     Song *sp = malloc(sizeof(Song));
@@ -28,9 +24,7 @@ static Song *makeSong(const char *title, const char *artist, int duration)
     return sp;
 }
 
-/* -------------------------------------------------------------------------
- * printSong - print a formatted song entry
- * ------------------------------------------------------------------------- */
+// printSong - print one formatted song row // O(1)
 static void printSong(int num, Song *sp)
 {
     int mins = sp->duration / 60;
@@ -38,10 +32,7 @@ static void printSong(int num, Song *sp)
     printf("  %2d. %-30s %-25s %d:%02d\n", num, sp->title, sp->artist, mins, secs);
 }
 
-/* -------------------------------------------------------------------------
- * printPlaylist - display all songs currently in the playlist
- * O(n) - visits every item
- * ------------------------------------------------------------------------- */
+// printPlaylist - display all songs in the playlist // O(n)
 static void printPlaylist(LIST *lp)
 {
     int total = numItems(lp);
@@ -49,70 +40,126 @@ static void printPlaylist(LIST *lp)
     printf("  %-3s %-30s %-25s %s\n", "#", "Title", "Artist", "Duration");
     printf("  -----------------------------------------------------------\n");
     for (int i = 0; i < total; i++) {
-        Song *sp = (Song *)getItem(lp, i);
+        Song *sp = (Song *)getItem(lp, i); // getItem is O(n/m) per call
         printSong(i + 1, sp);
     }
     printf("=================================================\n\n");
 }
 
-/* -------------------------------------------------------------------------
- * main - demonstrates the playlist using all list operations
- * ------------------------------------------------------------------------- */
+// promptSong - prompt user to enter song details and return a new Song // O(1)
+static Song *promptSong(void)
+{
+    char title[64], artist[64];
+    int  duration;
+
+    printf("  Title:           ");
+    fgets(title, sizeof(title), stdin);
+    title[strcspn(title, "\n")] = '\0'; // strip trailing newline
+
+    printf("  Artist:          ");
+    fgets(artist, sizeof(artist), stdin);
+    artist[strcspn(artist, "\n")] = '\0';
+
+    printf("  Duration (secs): ");
+    scanf("%d", &duration);
+    getchar(); // consume leftover newline after scanf
+
+    return makeSong(title, artist, duration);
+}
+
+// main - interactive Spotify-style playlist manager
 int main(void)
 {
     LIST *playlist = createList();
+    int   choice;
 
-    printf(">>> Creating playlist and queueing songs to the end (addLast)...\n");
+    printf("=== Spotify Playlist Manager ===\n");
 
-    /* Queue songs to the back of the playlist (addLast) */
-    addLast(playlist, makeSong("Blinding Lights",     "The Weeknd",       200));
-    addLast(playlist, makeSong("Levitating",          "Dua Lipa",         203));
-    addLast(playlist, makeSong("Stay",                "The Kid LAROI",    141));
-    addLast(playlist, makeSong("Peaches",             "Justin Bieber",    198));
-    addLast(playlist, makeSong("Good 4 U",            "Olivia Rodrigo",   178));
-    addLast(playlist, makeSong("Montero",             "Lil Nas X",        137));
-    addLast(playlist, makeSong("drivers license",     "Olivia Rodrigo",   242));
-    addLast(playlist, makeSong("Save Your Tears",     "The Weeknd",       215));
-    addLast(playlist, makeSong("Butter",              "BTS",              164));
-    addLast(playlist, makeSong("Industry Baby",       "Lil Nas X",        212));
+    while (1) {
+        // print menu options
+        printf("\n1. View playlist\n");
+        printf("2. Add song to end (queue)\n");
+        printf("3. Add song to front (play next)\n");
+        printf("4. Play next song (remove from front)\n");
+        printf("5. Remove last song\n");
+        printf("6. Jump to track by number\n");
+        printf("7. Exit\n");
+        printf("Choice: ");
+        scanf("%d", &choice);
+        getchar(); // consume newline
 
-    printPlaylist(playlist);
+        if (choice == 1) {
+            // view playlist
+            if (numItems(playlist) == 0)
+                printf("Playlist is empty.\n");
+            else
+                printPlaylist(playlist);
 
-    /* --- addFirst: bump a song to play next --- */
-    printf(">>> Bumping 'Heat Waves' to the front (addFirst - play next)...\n");
-    addFirst(playlist, makeSong("Heat Waves", "Glass Animals", 238));
-    printPlaylist(playlist);
+        } else if (choice == 2) {
+            // add song to end via addLast // O(1)
+            printf("Enter song details:\n");
+            Song *sp = promptSong();
+            addLast(playlist, sp);
+            printf("Added '%s' to the end.\n", sp->title);
 
-    /* --- removeFirst: play (consume) the first song --- */
-    printf(">>> Now playing and removing the first song (removeFirst)...\n");
-    Song *nowPlaying = (Song *)removeFirst(playlist);
-    printf("  Now Playing: %s by %s\n\n", nowPlaying->title, nowPlaying->artist);
-    free(nowPlaying);
+        } else if (choice == 3) {
+            // bump song to front via addFirst // O(1)
+            printf("Enter song details:\n");
+            Song *sp = promptSong();
+            addFirst(playlist, sp);
+            printf("'%s' will play next.\n", sp->title);
 
-    /* --- removeLast: drop the last song from the queue --- */
-    printf(">>> Removing the last song from the queue (removeLast)...\n");
-    Song *dropped = (Song *)removeLast(playlist);
-    printf("  Removed: %s by %s\n\n", dropped->title, dropped->artist);
-    free(dropped);
+        } else if (choice == 4) {
+            // play and remove the front song via removeFirst // O(1)
+            if (numItems(playlist) == 0) {
+                printf("Playlist is empty.\n");
+            } else {
+                Song *sp = (Song *)removeFirst(playlist);
+                printf("Now Playing: %s by %s\n", sp->title, sp->artist);
+                free(sp);
+            }
 
-    /* --- getItem: jump directly to track by index --- */
-    printf(">>> Jumping directly to track #5 (getItem at index 4)...\n");
-    Song *track5 = (Song *)getItem(playlist, 4);
-    printf("  Track 5: %s by %s\n\n", track5->title, track5->artist);
+        } else if (choice == 5) {
+            // remove the last song via removeLast // O(1)
+            if (numItems(playlist) == 0) {
+                printf("Playlist is empty.\n");
+            } else {
+                Song *sp = (Song *)removeLast(playlist);
+                printf("Removed '%s' from the end.\n", sp->title);
+                free(sp);
+            }
 
-    /* --- numItems: check how many songs remain --- */
-    printf(">>> Songs remaining in playlist: %d\n\n", numItems(playlist));
+        } else if (choice == 6) {
+            // jump to a track by index via getItem // O(n/m)
+            if (numItems(playlist) == 0) {
+                printf("Playlist is empty.\n");
+            } else {
+                int track;
+                printf("Enter track number (1-%d): ", numItems(playlist));
+                scanf("%d", &track);
+                getchar();
+                if (track < 1 || track > numItems(playlist)) {
+                    printf("Invalid track number.\n");
+                } else {
+                    Song *sp = (Song *)getItem(playlist, track - 1);
+                    printf("Track %d: %s by %s\n", track, sp->title, sp->artist);
+                }
+            }
 
-    printPlaylist(playlist);
+        } else if (choice == 7) {
+            // free all songs and destroy the list on exit
+            while (numItems(playlist) > 0) {
+                Song *sp = (Song *)removeFirst(playlist);
+                free(sp);
+            }
+            destroyList(playlist);
+            printf("Goodbye!\n");
+            break;
 
-    /* --- Clean up: free all remaining songs and the list --- */
-    printf(">>> Clearing playlist and freeing all memory...\n");
-    while (numItems(playlist) > 0) {
-        Song *sp = (Song *)removeFirst(playlist);
-        free(sp);
+        } else {
+            printf("Invalid choice. Try again.\n");
+        }
     }
-    destroyList(playlist);
 
-    printf("Playlist destroyed. All memory freed.\n");
     return 0;
 }
